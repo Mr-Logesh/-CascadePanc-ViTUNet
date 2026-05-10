@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CascadePanc-ViTUNet | Clinical Pancreatic Analysis</title>
+    <meta name="description"
+        content="AI-powered clinical pancreatic tumor segmentation, tissue characterization, T-staging, and explainable AI analysis using cascade ViT-UNet architecture.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(100000) | random }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- ============================================================
+         Header
+         ============================================================ -->
+    <header class="header" id="main-header">
+        <div class="header-brand">
+            <div class="header-logo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                </svg>
+            </div>
+            <div>
+                <div class="header-title">Cascade<span>Panc</span>-ViTUNet</div>
+                <div class="header-subtitle">Clinical Pancreatic Analysis System</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="header-new-scan" id="header-new-scan-btn" title="Start a new patient scan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+                New Scan
+            </button>
+            <span class="header-clock" id="header-clock"></span>
+            <div class="header-status">
+                {% if models_loaded %}
+                <div class="status-indicator online">
+                    <div class="status-dot"></div>
+                    <span>AI Models Ready</span>
+                </div>
+                {% else %}
+                <div class="status-indicator offline">
+                    <div class="status-dot"></div>
+                    <span>Models Not Loaded</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+         Main Content
+         ============================================================ -->
+    <main class="main-container">
+
+        <!-- Pipeline Overview -->
+        <section class="pipeline-strip">
+            <div class="pipeline-step">
+                <div class="step-icon si-1">1</div>
+                <span>CT Upload</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+                <div class="step-icon si-2">2</div>
+                <span>Preview & Inspect</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+                <div class="step-icon si-3">3</div>
+                <span>Pancreas Localization</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+                <div class="step-icon si-4">4</div>
+                <span>Tumor Segmentation</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+                <div class="step-icon si-5">5</div>
+                <span>Clinical Report</span>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-step">
+                <div class="step-icon si-6">6</div>
+                <span>Explainable AI</span>
+            </div>
+        </section>
+
+        <!-- Patient Info (Optional) -->
+        <section class="patient-info-section" id="patient-info-section">
+            <div class="patient-info-card">
+                <div class="patient-info-header"
+                    onclick="document.getElementById('patient-info-body').classList.toggle('open'); this.querySelector('.patient-info-toggle').textContent = document.getElementById('patient-info-body').classList.contains('open') ? '▲' : '▼';">
+                    <div class="panel-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)"
+                            stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        Patient Information (Optional)
+                    </div>
+                    <span class="patient-info-toggle">▼</span>
+                </div>
+                <div class="patient-info-body" id="patient-info-body">
+                    <div class="patient-info-grid">
+                        <div class="pi-field">
+                            <label for="patient-id">Patient ID</label>
+                            <input type="text" id="patient-id" placeholder="e.g. PT-2026-0042">
+                        </div>
+                        <div class="pi-field">
+                            <label for="patient-name">Patient Name</label>
+                            <input type="text" id="patient-name" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="pi-field">
+                            <label for="exam-date">Exam Date</label>
+                            <input type="date" id="exam-date">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scan History -->
+        <section class="scan-history-panel" id="scan-history-panel" style="display:none;">
+            <button class="history-toggle-btn"
+                onclick="document.getElementById('history-list').classList.toggle('open'); this.querySelector('span').textContent = document.getElementById('history-list').classList.contains('open') ? '▲ Hide History' : '▼ Scan History';">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>▼ Scan History</span>
+            </button>
+            <div class="history-list" id="history-list"></div>
+        </section>
+
+        <!-- ============================================================
+             Upload Section
+             ============================================================ -->
+        <section class="upload-section" id="upload-section">
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-icon-wrap">
+                    <svg class="upload-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                </div>
+                <div class="upload-title">Upload CT Scan</div>
+                <div class="upload-desc">Drag & drop a contrast-enhanced abdominal CT scan or click to browse</div>
+                <div class="upload-formats">
+                    <span class="format-badge">.nii</span>
+                    <span class="format-badge">.nii.gz</span>
+                    <span class="format-badge format-badge-dicom">.dcm</span>
+                    <span class="format-badge format-badge-dicom">.zip (DICOM folder)</span>
+                    <span class="format-badge-info">Max 500MB</span>
+                </div>
+                <div class="upload-note">
+                    ⚠️ 3D NIfTI or DICOM volumes required — For DICOM folders with many slices, zip the folder and
+                    upload the .zip
+                </div>
+            </div>
+            <input type="file" id="file-input" accept=".nii,.nii.gz,.gz,.dcm,.zip">
+
+            <div class="file-info-bar" id="file-info-bar">
+                <div class="file-info-left">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)"
+                        stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span class="file-name" id="file-name"></span>
+                    <span class="file-size" id="file-size"></span>
+                </div>
+                <button class="remove-file-btn" id="remove-file-btn" title="Remove file">✕</button>
+            </div>
+            <div class="volume-warning" id="volume-warning">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <span id="volume-warning-text"></span>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             CT Volume Preview (shows AFTER upload, BEFORE analysis)
+             ============================================================ -->
+        <section class="ct-preview-section" id="ct-preview-section">
+            <div class="panel ct-preview-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        CT Volume Preview
+                    </div>
+                    <span class="ct-filename" id="ct-filename"></span>
+                </div>
+
+                <!-- Volume Info Grid -->
+                <div class="ct-info-grid" id="ct-info-grid"></div>
+
+                <!-- MIP Projections -->
+                <div class="preview-section-label">Maximum Intensity Projections — Full Volume</div>
+                <div class="preview-mip-row" id="preview-mip-row"></div>
+
+                <!-- Center Orthogonal Slices -->
+                <div class="preview-section-label">Center Orthogonal Slices</div>
+                <div class="preview-ortho-row" id="preview-ortho-row"></div>
+
+                <!-- Montage Grid -->
+                <div class="preview-section-label">Slice Montage — Spread Across Volume</div>
+                <div class="preview-montage-grid" id="preview-montage-grid"></div>
+
+                <!-- Analyze Button -->
+                <div class="ct-analyze-bar">
+                    <button class="analyze-btn" id="analyze-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        Run Cascade Analysis
+                    </button>
+                    <p class="analyze-desc">Runs Stage 1 (Pancreas) → ROI Extraction → Stage 2 (Tumor) → HU Analysis →
+                        T-Staging → XAI</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             Progress Section
+             ============================================================ -->
+        <section class="progress-section" id="progress-section">
+            <div class="progress-card">
+                <div class="progress-header">
+                    <div class="progress-spinner"></div>
+                    <span>Analyzing CT Scan...</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-stages">
+                    <div class="pstage" data-stage="preprocessing">Preprocess</div>
+                    <div class="pstage" data-stage="stage1">Stage 1</div>
+                    <div class="pstage" data-stage="roi_extraction">ROI</div>
+                    <div class="pstage" data-stage="stage2">Stage 2</div>
+                    <div class="pstage" data-stage="clinical_analysis">Clinical</div>
+                    <div class="pstage" data-stage="xai">XAI</div>
+                </div>
+                <div class="progress-status" id="progress-status">Initializing pipeline...</div>
+                <div class="progress-eta" id="progress-eta"></div>
+            </div>
+        </section>
+
+        <!-- Error Card -->
+        <section class="error-card" id="error-card">
+            <h3>⚠ Analysis Failed</h3>
+            <div class="error-stage" id="error-stage">Stage: unknown</div>
+            <p id="error-message">An error occurred during analysis.</p>
+            <button class="retry-btn" onclick="if(typeof startAnalysis==='function') startAnalysis();">↻ Retry
+                Analysis</button>
+        </section>
+
+        <!-- ============================================================
+             Completion Bar (appears after analysis completes)
+             ============================================================ -->
+        <section class="completion-bar" id="completion-bar">
+            <div class="completion-card">
+                <div class="completion-left">
+                    <div class="completion-check">✓</div>
+                    <div class="completion-text">
+                        <h3>Analysis Complete</h3>
+                        <p id="completion-summary">Results are ready for review below.</p>
+                    </div>
+                </div>
+                <button class="new-scan-btn" id="new-scan-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    </svg>
+                    Analyze Another Scan
+                </button>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             Results Section
+             ============================================================ -->
+        <section class="results-section" id="results-section">
+
+            <!-- Actions Bar -->
+            <div class="results-actions-bar" id="results-actions-bar">
+                <button class="print-report-btn" onclick="window.print();">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 6 2 18 2 18 9" />
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                        <rect x="6" y="14" width="12" height="8" />
+                    </svg>
+                    Print Report
+                </button>
+            </div>
+
+            <!-- Patient Results Bar -->
+            <div class="patient-results-bar" id="patient-results-bar"></div>
+
+            <!-- Risk Banner -->
+            <div class="risk-banner" id="risk-banner">
+                <div class="risk-icon" id="risk-icon"></div>
+                <div class="risk-text">
+                    <div class="risk-label" id="risk-label">RISK LEVEL</div>
+                    <div class="risk-summary" id="risk-summary"></div>
+                </div>
+                <div class="risk-confidence" id="risk-confidence"></div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="metrics-grid" id="metrics-grid"></div>
+
+            <!-- Result Slice Viewer with Tabs -->
+            <div class="panel result-viewer-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        Segmentation Results
+                    </div>
+                    <div class="result-tab-bar" id="result-tab-bar">
+                        <button class="rtab active" data-view="ct">CT Only</button>
+                        <button class="rtab" data-view="stage1">Stage 1</button>
+                        <button class="rtab" data-view="segmentation">Full Segmentation</button>
+                    </div>
+                </div>
+                <div class="panel-body viewer-body">
+                    <img class="viewer-img" id="result-img" src="" alt="Result Slice">
+                </div>
+                <div class="viewer-nav" id="result-nav">
+                    <button class="nav-btn" id="result-prev-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                    </button>
+                    <span class="slice-counter" id="result-slice-label">— / —</span>
+                    <button class="nav-btn" id="result-next-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                    </button>
+                    <input type="range" class="result-slider" id="result-slider" min="0" max="0" value="0">
+                </div>
+            </div>
+
+            <!-- MIP Views -->
+            <div class="panel mip-panel" id="mip-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)"
+                            stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="2" />
+                            <path d="M7 2v20M17 2v20M2 12h20M2 7h20M2 17h20" />
+                        </svg>
+                        Maximum Intensity Projections
+                    </div>
+                </div>
+                <div class="panel-body mip-row" id="mip-row"></div>
+            </div>
+
+            <!-- HU Analysis -->
+            <div class="panel hu-panel" id="hu-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)"
+                            stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                        HU-Based Prediction Validation
+                    </div>
+                </div>
+                <div class="panel-body" id="hu-body"></div>
+            </div>
+
+            <!-- Clinical Diagnosis Panel -->
+            <div class="panel clinical-panel" id="clinical-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)"
+                            stroke-width="2">
+                            <path d="M9 11H3v10h6V11z" />
+                            <path d="M21 3h-6v18h6V3z" />
+                            <path d="M15 7H9v14h6V7z" />
+                        </svg>
+                        Clinical Diagnosis
+                    </div>
+                    <div class="panel-badge" id="diagnosis-badge"></div>
+                </div>
+                <div class="panel-body">
+                    <div class="diagnosis-primary" id="diagnosis-primary"></div>
+                    <div class="evidence-list" id="evidence-list"></div>
+                    <div class="differential-section" id="differential-section" style="display:none;">
+                        <h4 class="sub-heading">Differential Diagnoses</h4>
+                        <div id="differential-list"></div>
+                    </div>
+                    <div class="recommendations-section" id="recommendations-section" style="display:none;">
+                        <h4 class="sub-heading">Clinical Recommendations</h4>
+                        <ul id="recommendations-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- T-Staging Panel -->
+            <div class="panel staging-panel" id="staging-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)"
+                            stroke-width="2">
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                            <line x1="4" y1="22" x2="4" y2="15" />
+                        </svg>
+                        T-Staging (AJCC 8th Edition)
+                    </div>
+                    <div class="stage-badge" id="stage-badge"></div>
+                </div>
+                <div class="panel-body">
+                    <div class="staging-grid" id="staging-grid"></div>
+                    <div class="staging-notes" id="staging-notes"></div>
+                </div>
+            </div>
+
+            <!-- Pancreatitis Severity Panel -->
+            <div class="panel severity-panel" id="severity-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)"
+                            stroke-width="2">
+                            <path
+                                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        Pancreatitis Severity
+                    </div>
+                    <div class="severity-badge" id="severity-badge"></div>
+                </div>
+                <div class="panel-body" id="severity-body"></div>
+            </div>
+
+            <!-- XAI Panel -->
+            <div class="panel viewer-panel" id="xai-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-orange)"
+                            stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        Explainable AI — Attention & Grad-CAM
+                    </div>
+                </div>
+                <div class="panel-body viewer-body">
+                    <img class="viewer-img" id="xai-slice-image" src="" alt="XAI Slice">
+                </div>
+                <div class="viewer-nav" id="xai-nav">
+                    <button class="nav-btn" id="xai-prev-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                    </button>
+                    <span class="slice-counter" id="xai-counter">— / —</span>
+                    <button class="nav-btn" id="xai-next-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Processing Time Bar -->
+            <div class="panel timing-panel" id="timing-panel" style="display:none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Processing Time
+                    </div>
+                    <div class="timing-total" id="timing-total-label"></div>
+                </div>
+                <div class="panel-body">
+                    <div class="timing-total-big" id="timing-total-big"></div>
+                </div>
+            </div>
+
+            <!-- Disclaimer -->
+            <div class="disclaimer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)"
+                    stroke-width="2">
+                    <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div>
+                    <strong>Research Tool — Not for Clinical Diagnosis.</strong>
+                    This system is a research prototype (CascadePanc-ViTUNet). It has NOT received regulatory approval
+                    (FDA/CE).
+                    All results must be verified by a qualified radiologist. HU-based pathology classification uses
+                    rule-based thresholds
+                    from radiology literature — not a trained classifier. T-staging is size-based only (N/M staging
+                    requires additional data).
+                    Model trained on MSD Task07 Pancreas dataset (281 cases). Performance: Full Cascade Tumor DSC 0.787
+                    ± 0.207.
+                </div>
+            </div>
+
+            <!-- New Scan Button -->
+            <div style="text-align:center; margin-top:28px; margin-bottom:8px;">
+                <button onclick="
+                    uploadData = null; resultData = null; currentView = 'segmentation';
+                    resultSliceIdx = 0; xaiSlice = 0; totalXaiSlices = 0; xaiSliceImages = [];
+                    document.getElementById('file-input').value = '';
+                    document.getElementById('file-info-bar').classList.remove('visible');
+                    document.getElementById('upload-section').classList.remove('has-file');
+                    document.getElementById('ct-preview-section').classList.remove('visible');
+                    document.getElementById('progress-section').classList.remove('visible');
+                    document.getElementById('results-section').classList.remove('visible');
+                    var cb = document.getElementById('completion-bar'); if(cb) cb.classList.remove('visible');
+                    ['mip-panel','hu-panel','clinical-panel','staging-panel','severity-panel','xai-panel','timing-panel'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none';});
+                    var rb = document.getElementById('risk-banner'); if(rb) rb.className='risk-banner';
+                    var ds = document.getElementById('differential-section'); if(ds) ds.style.display='none';
+                    var rs = document.getElementById('recommendations-section'); if(rs) rs.style.display='none';
+                    var uz = document.getElementById('upload-zone'); if(uz) uz.style.display='';
+                    if(typeof resetUploadZone==='function') resetUploadZone();
+                    var ab = document.getElementById('analyze-btn'); if(ab){ab.disabled=false; ab.innerHTML='Run Cascade Analysis';}
+                    var pf = document.getElementById('progress-fill'); if(pf) pf.style.width='0%';
+                    document.querySelectorAll('.pstage').forEach(function(e){e.classList.remove('active','complete');});
+                    window.scrollTo({top:0,behavior:'smooth'});
+                " style="
+                    display:inline-flex; align-items:center; gap:10px; padding:14px 32px;
+                    background:transparent; color:#22ccee; border:2px solid #22ccee;
+                    border-radius:10px; font-size:15px; font-weight:700; cursor:pointer;
+                    font-family:'Inter',sans-serif; letter-spacing:0.3px; transition:all 0.25s ease;
+                " onmouseover="this.style.background='rgba(34,204,238,0.1)';this.style.boxShadow='0 0 20px rgba(34,204,238,0.2)';"
+                    onmouseout="this.style.background='transparent';this.style.boxShadow='none';">
+                    &#x21bb; Analyze New Scan
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div>CascadePanc-ViTUNet v2.0 | Vision Transformer + U-Net Cascade for Pancreatic Tumor Segmentation</div>
+        <div>ViTU-Net Architecture • MSD Task07 Pancreas • 13.7M Parameters • Dual Explainability (Attention Rollout +
+            Grad-CAM)</div>
+    </footer>
+
+    <!-- Fullscreen Lightbox -->
+    <div class="lightbox-overlay" id="lightbox-overlay" onclick="this.classList.remove('active');">
+        <button class="lightbox-close"
+            onclick="event.stopPropagation(); document.getElementById('lightbox-overlay').classList.remove('active');">✕</button>
+        <img class="lightbox-img" id="lightbox-img" src="" alt="Fullscreen" onclick="event.stopPropagation();">
+        <div class="lightbox-caption" id="lightbox-caption"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(100000) | random }}"></script>
+</body>
+
+</html>

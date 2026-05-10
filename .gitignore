@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual Environment
+venv/
+.env/
+env/
+
+# Model Checkpoints (large files, >100 MB GitHub limit)
+*.pth
+models/*.pth
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code local session data
+.claude/
+
+# App runtime (per-session uploads & results)
+app/static/uploads/
+app/static/results/
+
+# Data (large dataset, download separately - see README)
+data/imagesTr/
+data/imagesTs/
+data/labelsTr/
+data/tcianormalpancreas/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Backup / scratch
+*.bak
+~$*
+*_backup_*/
